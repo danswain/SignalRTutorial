@@ -1,0 +1,107 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <script type="text/javascript" src="~/Scripts/jquery-1.6.4.js"></script>
+    <script type="text/javascript" src="~/Scripts/jquery-ui-1.8.11.js"></script>
+    <script type="text/javascript" src="~/Scripts/jquery.signalR-0.5.3.js"></script>
+    <script type="text/javascript" src="~/Scripts/knockout-2.1.0.js"></script>
+    <script type="text/javascript" src="~/Scripts/modernizr-2.0.6-development-only.js"></script>
+    <script type="text/javascript" src="~/Scripts/jquery.signalR-0.5.3.js"></script>
+    <script src='/signalr/hubs'></script>
+    <title></title>
+</head>
+<body>
+    <div>
+        <h1>
+            ScrumBoard</h1>
+            <form data-bind="submit: addStory">
+        <p>
+            First name:
+            <input data-bind="value: title" /></p>
+        <p>
+            Last name:
+            <input data-bind="value: description" /></p>
+            <p><input type="submit" value="Add Story"/></p>
+            </form>
+    </div>
+    <div data-bind="template:{name: 'story-template', foreach: stories }">
+    </div>    
+    <script type="text/javascript">
+        $(function () {
+
+            function Story(id, title, description, state) {
+                this.Id = ko.observable(id);
+                this.Title = ko.observable(title);
+                this.Description = ko.observable(description);
+                this.State = ko.observable(state);
+            }
+
+            function ScrumBoard() {
+                this.title = ko.observable("New Story");
+                this.description = ko.observable("New Description");
+
+                this.hub = $.connection.scrumBoardHub;
+                this.viewModel = null;
+                this.stories = ko.observableArray([]);
+                var stories = this.stories;
+
+                this.init = function () {
+                    console.log("init");
+                    this.hub.getStories();
+                };
+
+                this.addStory = function (newStory) {
+                    console.log("addStory");
+                    var t = { "title": this.title(), "description": this.description(), "state":"todo" };
+                    this.hub.createStory(t).done(function () {
+                        console.log('Success!')
+                    }).fail(function (e) {
+                        console.warn(e);
+                    });
+                    this.title("");
+                    this.description("");
+
+                };
+
+                this.hub.addedStory = function (story) {
+                    console.log("addedStory");
+                    stories.push(new Story(story.Id, story.Title, story.Description,story.State));
+                };
+
+                this.hub.populateStories = function (storyArray) {
+                    console.log("populate stories");
+                    var mappedTasks = $.map(storyArray, function (item) {
+                        return new Story(item.Id, item.Title, item.Description,item.State);
+                    });
+
+                    stories(mappedTasks);
+                };
+
+            }
+
+
+            var scrumBoard = new ScrumBoard();
+            $.connection.hub.start(function () { scrumBoard.init(); });
+            ko.applyBindings(scrumBoard);
+
+
+        });
+    </script>
+    
+    
+
+    <script type="text/html" id="story-template">
+        <div class="story" data-bind="attr: {id: Id}" >                                
+            <h3 data-bind="text: Title"></h3>                                
+            <p data-bind="text: Description"></p>
+            <label data-bind="text: State"></label>
+            <hr/>
+        </div>
+    </script>
+
+</body>
+</html>
